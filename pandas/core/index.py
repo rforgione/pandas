@@ -5772,7 +5772,7 @@ class MultiIndex(Index):
 
         # must be lexsorted to at least as many levels
         if not self.is_lexsorted_for_tuple(tup):
-            raise KeyError('MultiIndex Slicing requires the index to be fully lexsorted'
+            raise MultiIndexSortError('MultiIndex Slicing requires the index to be fully lexsorted'
                            ' tuple len ({0}), lexsort depth ({1})'.format(len(tup), self.lexsort_depth))
 
         # indexer

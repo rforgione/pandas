@@ -34,6 +34,14 @@ IndexSlice = _IndexSlice()
 class IndexingError(Exception):
     pass
 
+class MultiIndexSortError(KeyError):
+    """
+    Raised when a multi-indexed DataFrame is indexed
+    by a single index while the DataFrame is not
+    lexsorted.
+    """
+    pass
+
 class _NDFrameIndexer(object):
     _valid_types = None
     _exception = KeyError
