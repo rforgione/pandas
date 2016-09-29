@@ -198,6 +198,19 @@ def test_dict_compat():
     assert (com._dict_compat(data_unchanged) == data_unchanged)
 
 
+def test_enforce_bool_type():
+    tm.assert_equal(com._enforce_bool_type(True), True)
+    tm.assert_equal(com._enforce_bool_type(False), False)
+
+    error_str = "Expected type bool, received type int."
+    with tm.assertRaisesRegexp(ValueError, error_str):
+        com._enforce_bool_type(1)
+
+    error_str = "Expected type bool, received type str."
+    with tm.assertRaisesRegexp(ValueError, error_str):
+        com._enforce_bool_type("True")
+
+
 if __name__ == '__main__':
     nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
                    exit=False)

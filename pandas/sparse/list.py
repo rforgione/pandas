@@ -4,7 +4,7 @@ from pandas.core.base import PandasObject
 from pandas.formats.printing import pprint_thing
 
 from pandas.types.common import is_scalar
-from pands.core.common import _enforce_bool_type
+from pandas.core.common import _enforce_bool_type
 from pandas.sparse.array import SparseArray
 import pandas._sparse as splib
 
@@ -79,7 +79,7 @@ class SparseList(PandasObject):
             If inplace=False, new object, otherwise reference to existing
             object
         """
-        inplace = com.enforce_bool_type(inplace)
+        inplace = _enforce_bool_type(inplace)
         if not inplace:
             result = self.copy()
         else:

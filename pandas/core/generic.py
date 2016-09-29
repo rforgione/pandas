@@ -2225,7 +2225,7 @@ class NDFrame(PandasObject):
     #       kinds
 
     @Appender(_shared_docs['reindex'] % dict(axes="axes", klass="NDFrame"))
-        def reindex(self, *args, **kwargs):
+    def reindex(self, *args, **kwargs):
 
         # construct the args
         axes, kwargs = self._construct_axes_from_arguments(args, kwargs)
