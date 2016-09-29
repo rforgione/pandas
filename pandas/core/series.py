@@ -2354,7 +2354,11 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
 
     @Appender(generic._shared_docs['rename'] % _shared_doc_kwargs)
     def rename(self, index=None, **kwargs):
-        kwargs['inplace'] = _enforce_bool_type(kwargs['inplace'])
+        if 'inplace' in kwargs:
+            kwargs['inplace'] = _enforce_bool_type(kwargs['inplace'])
+        else:
+            kwargs['inplace'] = False
+
         non_mapping = is_scalar(index) or (is_list_like(index) and
                                            not is_dict_like(index))
         if non_mapping:

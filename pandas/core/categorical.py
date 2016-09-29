@@ -23,7 +23,7 @@ from pandas.types.common import (_ensure_int64,
                                  is_integer_dtype, is_bool,
                                  is_list_like, is_sequence,
                                  is_scalar)
-from pandas.core.common import is_null_slice
+from pandas.core.common import is_null_slice, _enforce_bool_type
 
 from pandas.core.algorithms import factorize, take_1d
 from pandas.core.base import (PandasObject, PandasDelegate,
@@ -615,6 +615,7 @@ class Categorical(PandasObject):
            Whether or not to set the ordered attribute inplace or return a copy
            of this categorical with ordered set to the value
         """
+        inplace = _enforce_bool_type(inplace)
         self._validate_ordered(value)
         cat = self if inplace else self.copy()
         cat._ordered = value
@@ -631,7 +632,7 @@ class Categorical(PandasObject):
            Whether or not to set the ordered attribute inplace or return a copy
            of this categorical with ordered set to True
         """
-        return self.set_ordered(True, inplace=inplace)
+        return self.set_ordered(True, inplace=_enforce_bool_type(inplace))
 
     def as_unordered(self, inplace=False):
         """
@@ -643,7 +644,7 @@ class Categorical(PandasObject):
            Whether or not to set the ordered attribute inplace or return a copy
            of this categorical with ordered set to False
         """
-        return self.set_ordered(False, inplace=inplace)
+        return self.set_ordered(False, inplace=_enforce_bool_type(inplace))
 
     def _get_ordered(self):
         """ Gets the ordered attribute """
@@ -702,6 +703,7 @@ class Categorical(PandasObject):
         remove_categories
         remove_unused_categories
         """
+        inplace = _enforce_bool_type(inplace)
         new_categories = self._validate_categories(new_categories)
         cat = self if inplace else self.copy()
         if rename:
@@ -754,6 +756,7 @@ class Categorical(PandasObject):
         remove_unused_categories
         set_categories
         """
+        inplace = _enforce_bool_type(inplace)
         cat = self if inplace else self.copy()
         cat.categories = new_categories
         if not inplace:
@@ -794,6 +797,7 @@ class Categorical(PandasObject):
         remove_unused_categories
         set_categories
         """
+        inplace = _enforce_bool_type(inplace)
         if set(self._categories) != set(new_categories):
             raise ValueError("items in new_categories are not the same as in "
                              "old categories")
@@ -832,6 +836,7 @@ class Categorical(PandasObject):
         remove_unused_categories
         set_categories
         """
+        inplace = _enforce_bool_type(inplace)
         if not is_list_like(new_categories):
             new_categories = [new_categories]
         already_included = set(new_categories) & set(self._categories)
@@ -877,6 +882,7 @@ class Categorical(PandasObject):
         remove_unused_categories
         set_categories
         """
+        inplace = _enforce_bool_type(inplace)
         if not is_list_like(removals):
             removals = [removals]
 
@@ -917,6 +923,7 @@ class Categorical(PandasObject):
         remove_categories
         set_categories
         """
+        inplace = _enforce_bool_type(inplace)
         cat = self if inplace else self.copy()
         idx, inv = np.unique(cat._codes, return_inverse=True)
 
@@ -1316,6 +1323,7 @@ class Categorical(PandasObject):
         [NaN, NaN, 5.0, 2.0, 2.0]
         Categories (2, int64): [2, 5]
         """
+        inplace = _enforce_bool_type(inplace)
         if na_position not in ['last', 'first']:
             raise ValueError('invalid na_position: {!r}'.format(na_position))
 

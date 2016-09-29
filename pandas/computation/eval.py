@@ -148,7 +148,7 @@ def _check_for_locals(expr, stack_level, parser):
 
 def eval(expr, parser='pandas', engine=None, truediv=True,
          local_dict=None, global_dict=None, resolvers=(), level=0,
-         target=None, inplace=None):
+         target=None, inplace=True):
     """Evaluate a Python expression as a string using various backends.
 
     The following arithmetic operations are supported: ``+``, ``-``, ``*``,
@@ -211,10 +211,6 @@ def eval(expr, parser='pandas', engine=None, truediv=True,
         If expression mutates, whether to modify object inplace or return
         copy with mutation.
 
-        WARNING: inplace=None currently falls back to to True, but
-        in a future version, will default to False.  Use inplace=True
-        explicitly rather than relying on the default.
-
     Returns
     -------
     ndarray, numeric scalar, DataFrame, Series
@@ -232,7 +228,7 @@ def eval(expr, parser='pandas', engine=None, truediv=True,
     pandas.DataFrame.query
     pandas.DataFrame.eval
     """
-    inplace = com.enforce_bool_type(inplace)
+    inplace = com._enforce_bool_type(inplace)
     first_expr = True
     if isinstance(expr, string_types):
         exprs = [e for e in expr.splitlines() if e != '']

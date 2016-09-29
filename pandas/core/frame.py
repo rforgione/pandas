@@ -2220,7 +2220,7 @@ class DataFrame(NDFrame):
         else:
             return new_data
 
-    def eval(self, expr, inplace=None, **kwargs):
+    def eval(self, expr, inplace=True, **kwargs):
         """Evaluate an expression in the context of the calling DataFrame
         instance.
 
@@ -2231,10 +2231,6 @@ class DataFrame(NDFrame):
         inplace : bool
             If the expression contains an assignment, whether to return a new
             DataFrame or mutate the existing.
-
-            WARNING: inplace=None currently falls back to to True, but
-            in a future version, will default to False.  Use inplace=True
-            explicitly rather than relying on the default.
 
             .. versionadded:: 0.18.0
 
