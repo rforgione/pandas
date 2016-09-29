@@ -43,7 +43,7 @@ from pandas.types.missing import (isnull, array_equivalent,
 import pandas.types.concat as _concat
 
 from pandas.types.generic import ABCSeries
-from pandas.core.common import is_null_slice
+from pandas.core.common import is_null_slice, _enforce_bool_type
 import pandas.core.algorithms as algos
 
 from pandas.core.index import Index, MultiIndex, _ensure_index
@@ -361,6 +361,7 @@ class Block(PandasObject):
         """ fillna on the block with the value. If we fail, then convert to
         ObjectBlock and try again
         """
+        inplace = com.enforce_bool_type(inplace)
 
         if not self._can_hold_na:
             if inplace:
@@ -621,6 +622,7 @@ class Block(PandasObject):
         compatibility.
         """
 
+        inplace = com.enforce_bool_type(inplace)
         original_to_replace = to_replace
         mask = isnull(self.values)
 
@@ -893,6 +895,9 @@ class Block(PandasObject):
                     inplace=False, limit=None, limit_direction='forward',
                     fill_value=None, coerce=False, downcast=None, mgr=None,
                     **kwargs):
+
+        inplace = com.enforce_bool_type(inplace)
+
         def check_int_bool(self, inplace):
             # Only FloatBlocks will contain NaNs.
             # timedelta subclasses IntBlock
@@ -940,6 +945,8 @@ class Block(PandasObject):
                                downcast=None, mgr=None):
         """ fillna but using the interpolate machinery """
 
+        inplace = com.enforce_bool_type(inplace)
+
         # if we are coercing, then don't force the conversion
         # if the block can't hold the type
         if coerce:
@@ -966,6 +973,7 @@ class Block(PandasObject):
                      mgr=None, **kwargs):
         """ interpolate using scipy wrappers """
 
+        inplace = com.enforce_bool_type(inplace)
         data = self.values if inplace else self.values.copy()
 
         # only deal with floats
@@ -1487,6 +1495,7 @@ class NonConsolidatableMixIn(object):
         -------
         a new block(s), the result of the putmask
         """
+        inplace = com.enforce_bool_type(inplace)
 
         # use block's copy logic.
         # .values may be an Index which does shallow copy by default
@@ -1774,6 +1783,7 @@ class BoolBlock(NumericBlock):
 
     def replace(self, to_replace, value, inplace=False, filter=None,
                 regex=False, mgr=None):
+        inplace = com.enforce_bool_type(inplace)
         to_replace_values = np.atleast_1d(to_replace)
         if not np.can_cast(to_replace_values, bool):
             return self
@@ -1954,6 +1964,9 @@ class ObjectBlock(Block):
 
     def _replace_single(self, to_replace, value, inplace=False, filter=None,
                         regex=False, convert=True, mgr=None):
+
+        inplace = com.enforce_bool_type(inplace)
+
         # to_replace is regex compilable
         to_rep_re = regex and is_re_compilable(to_replace)
 
@@ -3176,6 +3189,8 @@ class BlockManager(PandasObject):
     def replace_list(self, src_list, dest_list, inplace=False, regex=False,
                      mgr=None):
         """ do a list replace """
+
+        inplace = com.enforce_bool_type(inplace)
 
         if mgr is None:
             mgr = self

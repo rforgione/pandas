@@ -40,7 +40,8 @@ from pandas.core.common import (is_bool_indexer,
                                 _maybe_match_name,
                                 SettingWithCopyError,
                                 _maybe_box_datetimelike,
-                                _dict_compat)
+                                _dict_compat,
+                                _enforce_bool_type)
 from pandas.core.index import (Index, MultiIndex, InvalidIndexError,
                                Float64Index, _ensure_index)
 from pandas.core.indexing import check_bool_indexer, maybe_convert_indices
@@ -971,6 +972,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
         ----------
         resetted : DataFrame, or Series if drop == True
         """
+        inplace = _enforce_bool_type(inplace)
         if drop:
             new_index = _default_index(len(self))
             if level is not None and isinstance(self.index, MultiIndex):
@@ -1171,6 +1173,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
         inplace : bool
             whether to modify `self` directly or return a copy
         """
+        inplace = _enforce_bool_type(inplace)
         ser = self if inplace else self.copy()
         ser.name = name
         return ser
@@ -1723,6 +1726,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
     def sort_values(self, axis=0, ascending=True, inplace=False,
                     kind='quicksort', na_position='last'):
 
+        inplace = _enforce_bool_type(inplace)
         axis = self._get_axis_number(axis)
 
         # GH 5856/5853
@@ -1775,6 +1779,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
     def sort_index(self, axis=0, level=None, ascending=True, inplace=False,
                    sort_remaining=True):
 
+        inplace = _enforce_bool_type(inplace)
         axis = self._get_axis_number(axis)
         index = self.index
         if level is not None:
@@ -2349,6 +2354,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
 
     @Appender(generic._shared_docs['rename'] % _shared_doc_kwargs)
     def rename(self, index=None, **kwargs):
+        kwargs['inplace'] = _enforce_bool_type(kwargs['inplace'])
         non_mapping = is_scalar(index) or (is_list_like(index) and
                                            not is_dict_like(index))
         if non_mapping:
@@ -2632,6 +2638,7 @@ class Series(base.IndexOpsMixin, strings.StringAccessorMixin,
         inplace : boolean, default False
             Do operation in place.
         """
+        inplace = _enforce_bool_type(inplace)
         kwargs.pop('how', None)
         if kwargs:
             raise TypeError('dropna() got an unexpected keyword '

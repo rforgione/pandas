@@ -205,6 +205,13 @@ def is_bool_indexer(key):
     return False
 
 
+def _enforce_bool_type(value):
+    if not isinstance(value, bool):
+        raise ValueError('Expected type bool, received type %s.' %\
+            type(value).__name__)
+    return value
+
+
 def _default_index(n):
     from pandas.core.index import RangeIndex
     return RangeIndex(0, n, name=None)

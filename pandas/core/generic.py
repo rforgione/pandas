@@ -30,7 +30,8 @@ from pandas.types.generic import ABCSeries, ABCPanel
 from pandas.core.common import (_values_from_object,
                                 _maybe_box_datetimelike,
                                 SettingWithCopyError, SettingWithCopyWarning,
-                                AbstractMethodError)
+                                AbstractMethodError,
+                                _enforce_bool_type)
 
 from pandas.core.base import PandasObject
 from pandas.core.index import (Index, MultiIndex, _ensure_index,
@@ -732,6 +733,7 @@ class NDFrame(PandasObject):
         1    2  5
         2    3  6
         """
+        inplace = _enforce_bool_type(inplace)
         non_mapper = is_scalar(mapper) or (is_list_like(mapper) and not
                                            is_dict_like(mapper))
         if non_mapper:
@@ -1893,6 +1895,7 @@ class NDFrame(PandasObject):
         -------
         dropped : type of caller
         """
+        inplace = _enforce_bool_type(inplace)
         axis = self._get_axis_number(axis)
         axis_name = self._get_axis_name(axis)
         axis, axis_ = self._get_axis(axis), axis
@@ -2041,6 +2044,7 @@ class NDFrame(PandasObject):
     @Appender(_shared_docs['sort_index'] % dict(axes="axes", klass="NDFrame"))
     def sort_index(self, axis=0, level=None, ascending=True, inplace=False,
                    kind='quicksort', na_position='last', sort_remaining=True):
+        inplace = _enforce_bool_type(inplace)
         axis = self._get_axis_number(axis)
         axis_name = self._get_axis_name(axis)
         labels = self._get_axis(axis)
@@ -2221,7 +2225,7 @@ class NDFrame(PandasObject):
     #       kinds
 
     @Appender(_shared_docs['reindex'] % dict(axes="axes", klass="NDFrame"))
-    def reindex(self, *args, **kwargs):
+        def reindex(self, *args, **kwargs):
 
         # construct the args
         axes, kwargs = self._construct_axes_from_arguments(args, kwargs)
@@ -2814,6 +2818,7 @@ class NDFrame(PandasObject):
         -------
         consolidated : type of caller
         """
+        inplace = _enforce_bool_type(inplace)
         if inplace:
             self._consolidate_inplace()
         else:
@@ -3199,6 +3204,7 @@ class NDFrame(PandasObject):
     @Appender(_shared_docs['fillna'] % _shared_doc_kwargs)
     def fillna(self, value=None, method=None, axis=None, inplace=False,
                limit=None, downcast=None):
+        inplace = _enforce_bool_type(inplace)
         if isinstance(value, (list, tuple)):
             raise TypeError('"value" parameter must be a scalar or dict, but '
                             'you passed a "{0}"'.format(type(value).__name__))
@@ -3407,6 +3413,7 @@ class NDFrame(PandasObject):
           and play with this method to gain intuition about how it works.
 
         """
+        inplace = _enforce_bool_type(inplace)
         if not is_bool(regex) and to_replace is not None:
             raise AssertionError("'to_replace' must be 'None' if 'regex' is "
                                  "not a bool")
@@ -3632,6 +3639,7 @@ class NDFrame(PandasObject):
         """
         Interpolate values according to different methods.
         """
+        inplace = _enforce_bool_type(inplace)
 
         if self.ndim > 2:
             raise NotImplementedError("Interpolate has not been implemented "
@@ -4511,6 +4519,7 @@ class NDFrame(PandasObject):
         Equivalent to public method `where`, except that `other` is not
         applied as a function even if callable. Used in __setitem__.
         """
+        inplace = _enforce_bool_type(inplace)
 
         cond = com._apply_if_callable(cond, self)
 
@@ -4778,6 +4787,7 @@ class NDFrame(PandasObject):
     def mask(self, cond, other=np.nan, inplace=False, axis=None, level=None,
              try_cast=False, raise_on_error=True):
 
+        inplace = _enforce_bool_type(inplace)
         cond = com._apply_if_callable(cond, self)
 
         return self.where(~cond, other=other, inplace=inplace, axis=axis,

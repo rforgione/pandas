@@ -61,7 +61,8 @@ from pandas.core.common import (PandasError, _try_sort,
                                 _default_index,
                                 _values_from_object,
                                 _maybe_box_datetimelike,
-                                _dict_compat)
+                                _dict_compat,
+                                _enforce_bool_type)
 from pandas.core.generic import NDFrame, _shared_docs
 from pandas.core.index import Index, MultiIndex, _ensure_index
 from pandas.core.indexing import (maybe_droplevels, convert_to_index_sliceable,
@@ -2199,6 +2200,7 @@ class DataFrame(NDFrame):
         >>> df.query('a > b')
         >>> df[df.a > df.b]  # same result as the previous expression
         """
+        inplace = _enforce_bool_type(inplace)
         if not isinstance(expr, compat.string_types):
             msg = "expr must be a string to be evaluated, {0} given"
             raise ValueError(msg.format(type(expr)))
@@ -2265,6 +2267,7 @@ class DataFrame(NDFrame):
         >>> df.eval('a + b')
         >>> df.eval('c = a + b')
         """
+        inplace = _enforce_bool_type(inplace)
         resolvers = kwargs.pop('resolvers', None)
         kwargs['level'] = kwargs.pop('level', 0) + 1
         if resolvers is None:
@@ -2857,6 +2860,7 @@ class DataFrame(NDFrame):
         -------
         dataframe : DataFrame
         """
+        inplace = _enforce_bool_type(inplace)
         if not isinstance(keys, list):
             keys = [keys]
 
@@ -2949,6 +2953,7 @@ class DataFrame(NDFrame):
         -------
         resetted : DataFrame
         """
+        inplace = _enforce_bool_type(inplace)
         if inplace:
             new_obj = self
         else:
@@ -3053,6 +3058,7 @@ class DataFrame(NDFrame):
         -------
         dropped : DataFrame
         """
+        inplace = _enforce_bool_type(inplace)
         if isinstance(axis, (tuple, list)):
             result = self
             for ax in axis:
@@ -3116,6 +3122,7 @@ class DataFrame(NDFrame):
         -------
         deduplicated : DataFrame
         """
+        inplace = _enforce_bool_type(inplace)
         duplicated = self.duplicated(subset, keep=keep)
 
         if inplace:
@@ -3177,7 +3184,7 @@ class DataFrame(NDFrame):
     @Appender(_shared_docs['sort_values'] % _shared_doc_kwargs)
     def sort_values(self, by, axis=0, ascending=True, inplace=False,
                     kind='quicksort', na_position='last'):
-
+        inplace = _enforce_bool_type(inplace)
         axis = self._get_axis_number(axis)
         other_axis = 0 if axis == 1 else 1
 
@@ -3288,7 +3295,7 @@ class DataFrame(NDFrame):
     def sort_index(self, axis=0, level=None, ascending=True, inplace=False,
                    kind='quicksort', na_position='last', sort_remaining=True,
                    by=None):
-
+        inplace = _enforce_bool_type(inplace)
         # 10726
         if by is not None:
             warnings.warn("by argument to sort_index is deprecated, pls use "

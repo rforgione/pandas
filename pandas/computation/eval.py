@@ -11,6 +11,7 @@ from pandas.computation.expr import Expr, _parsers, tokenize_string
 from pandas.computation.scope import _ensure_scope
 from pandas.compat import string_types
 from pandas.computation.engines import _engines
+from pandas.core import common as com
 
 
 def _check_engine(engine):
@@ -231,6 +232,7 @@ def eval(expr, parser='pandas', engine=None, truediv=True,
     pandas.DataFrame.query
     pandas.DataFrame.eval
     """
+    inplace = com.enforce_bool_type(inplace)
     first_expr = True
     if isinstance(expr, string_types):
         exprs = [e for e in expr.splitlines() if e != '']

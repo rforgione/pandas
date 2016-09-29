@@ -1177,6 +1177,7 @@ class IndexOpsMixin(object):
                                                    False: 'first'})
     @Appender(_shared_docs['drop_duplicates'] % _indexops_doc_kwargs)
     def drop_duplicates(self, keep='first', inplace=False):
+        inplace = com._enforce_bool_type(inplace)
         if isinstance(self, ABCIndexClass):
             if self.is_unique:
                 return self._shallow_copy()
