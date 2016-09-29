@@ -206,7 +206,7 @@ def is_bool_indexer(key):
 
 
 def _enforce_bool_type(value):
-    if not isinstance(value, bool):
+    if not is_bool(value):
         raise ValueError('Expected type bool, received type %s.' %\
             type(value).__name__)
     return value
