@@ -116,12 +116,27 @@ class MultiIndex(Index):
 
         return result
 
-    def _verify_integrity(self):
-        """Raises ValueError if length of levels and labels don't match or any
-        label would exceed level bounds"""
+    def _verify_integrity(self, labels=None, levels=None):
+        """
+
+        Parameters
+        ----------
+        labels : optional list
+            Labels to check for validity. Defaults to current labels.
+        levels : optional list
+            Levels to check for validity. Defaults to current levels.
+
+        Raises
+        ------
+        ValueError
+            * if length of levels and labels don't match or any label would
+            exceed level bounds
+        """
         # NOTE: Currently does not check, among other things, that cached
         # nlevels matches nor that sortorder matches actually sortorder.
-        labels, levels = self.labels, self.levels
+        labels = labels or self.labels
+        levels = levels or self.levels
+
         if len(levels) != len(labels):
             raise ValueError("Length of levels and labels must match. NOTE:"
                              " this index is in an inconsistent state.")
@@ -162,6 +177,9 @@ class MultiIndex(Index):
                 new_levels[l] = _ensure_index(v, copy=copy)._shallow_copy()
             new_levels = FrozenList(new_levels)
 
+        if verify_integrity:
+            self._verify_integrity(levels=new_levels)
+
         names = self.names
         self._levels = new_levels
         if any(names):
@@ -169,9 +187,6 @@ class MultiIndex(Index):
 
         self._tuples = None
         self._reset_cache()
-
-        if verify_integrity:
-            self._verify_integrity()
 
     def set_levels(self, levels, level=None, inplace=False,
                    verify_integrity=True):
@@ -268,12 +283,12 @@ class MultiIndex(Index):
                     lab, lev, copy=copy)._shallow_copy()
             new_labels = FrozenList(new_labels)
 
+        if verify_integrity:
+            self._verify_integrity(labels=new_labels)
+
         self._labels = new_labels
         self._tuples = None
         self._reset_cache()
-
-        if verify_integrity:
-            self._verify_integrity()
 
     def set_labels(self, labels, level=None, inplace=False,
                    verify_integrity=True):
@@ -523,6 +538,37 @@ class MultiIndex(Index):
                         sortorder=self.sortorder, verify_integrity=False)
 
         return mi.values
+
+    @Appender(_index_shared_docs['_get_grouper_for_level'])
+    def _get_grouper_for_level(self, mapper, level):
+        indexer = self.labels[level]
+        level_index = self.levels[level]
+
+        if mapper is not None:
+            # Handle group mapping function and return
+            level_values = self.levels[level].take(indexer)
+            grouper = level_values.map(mapper)
+            return grouper, None, None
+
+        labels, uniques = algos.factorize(indexer, sort=True)
+
+        if len(uniques) > 0 and uniques[0] == -1:
+            # Handle NAs
+            mask = indexer != -1
+            ok_labels, uniques = algos.factorize(indexer[mask],
+                                                 sort=True)
+
+            labels = np.empty(len(indexer), dtype=indexer.dtype)
+            labels[mask] = ok_labels
+            labels[~mask] = -1
+
+        if len(uniques) < len(level_index):
+            # Remove unobserved levels from level_index
+            level_index = level_index.take(uniques)
+
+        grouper = level_index.take(labels)
+
+        return grouper, labels, level_index
 
     @property
     def _constructor(self):
@@ -1120,10 +1166,11 @@ class MultiIndex(Index):
     def argsort(self, *args, **kwargs):
         return self.values.argsort(*args, **kwargs)
 
-    def repeat(self, n, *args, **kwargs):
+    @deprecate_kwarg(old_arg_name='n', new_arg_name='repeats')
+    def repeat(self, repeats, *args, **kwargs):
         nv.validate_repeat(args, kwargs)
         return MultiIndex(levels=self.levels,
-                          labels=[label.view(np.ndarray).repeat(n)
+                          labels=[label.view(np.ndarray).repeat(repeats)
                                   for label in self.labels], names=self.names,
                           sortorder=self.sortorder, verify_integrity=False)
 
@@ -1861,6 +1908,13 @@ class MultiIndex(Index):
                 return np.array(labels == loc, dtype=bool)
             else:
                 # sorted, so can return slice object -> view
+                try:
+                    loc = labels.dtype.type(loc)
+                except TypeError:
+                    # this occurs when loc is a slice (partial string indexing)
+                    # but the TypeError raised by searchsorted in this case
+                    # is catched in Index._has_valid_type()
+                    pass
                 i = labels.searchsorted(loc, side='left')
                 j = labels.searchsorted(loc, side='right')
                 return slice(i, j)

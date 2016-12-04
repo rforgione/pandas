@@ -97,6 +97,10 @@ class TestMultiIndex(Base, tm.TestCase):
             numbers, names.repeat(reps)], names=names)
         tm.assert_index_equal(m.repeat(reps), expected)
 
+        with tm.assert_produces_warning(FutureWarning):
+            result = m.repeat(n=reps)
+            tm.assert_index_equal(result, expected)
+
     def test_numpy_repeat(self):
         reps = 2
         numbers = [1, 2, 3]
@@ -149,14 +153,14 @@ class TestMultiIndex(Base, tm.TestCase):
         levels = self.index.levels
         new_levels = [[lev + 'a' for lev in level] for level in levels]
 
-        def assert_matching(actual, expected):
+        def assert_matching(actual, expected, check_dtype=False):
             # avoid specifying internal representation
             # as much as possible
             self.assertEqual(len(actual), len(expected))
             for act, exp in zip(actual, expected):
                 act = np.asarray(act)
-                exp = np.asarray(exp, dtype=np.object_)
-                tm.assert_numpy_array_equal(act, exp)
+                exp = np.asarray(exp)
+                tm.assert_numpy_array_equal(act, exp, check_dtype=check_dtype)
 
         # level changing [w/o mutation]
         ind2 = self.index.set_levels(new_levels)
@@ -203,6 +207,31 @@ class TestMultiIndex(Base, tm.TestCase):
         self.assertIsNone(inplace_return)
         assert_matching(ind2.levels, new_levels)
         assert_matching(self.index.levels, levels)
+
+        # illegal level changing should not change levels
+        # GH 13754
+        original_index = self.index.copy()
+        for inplace in [True, False]:
+            with assertRaisesRegexp(ValueError, "^On"):
+                self.index.set_levels(['c'], level=0, inplace=inplace)
+            assert_matching(self.index.levels, original_index.levels,
+                            check_dtype=True)
+
+            with assertRaisesRegexp(ValueError, "^On"):
+                self.index.set_labels([0, 1, 2, 3, 4, 5], level=0,
+                                      inplace=inplace)
+            assert_matching(self.index.labels, original_index.labels,
+                            check_dtype=True)
+
+            with assertRaisesRegexp(TypeError, "^Levels"):
+                self.index.set_levels('c', level=0, inplace=inplace)
+            assert_matching(self.index.levels, original_index.levels,
+                            check_dtype=True)
+
+            with assertRaisesRegexp(TypeError, "^Labels"):
+                self.index.set_labels(1, level=0, inplace=inplace)
+            assert_matching(self.index.labels, original_index.labels,
+                            check_dtype=True)
 
     def test_set_labels(self):
         # side note - you probably wouldn't want to use levels and labels
@@ -1845,7 +1874,7 @@ class TestMultiIndex(Base, tm.TestCase):
         idx = pd.MultiIndex.from_product(vals, names=['str', 'dt'])
         indices = [1, 2]
 
-        msg = "take\(\) got an unexpected keyword argument 'foo'"
+        msg = r"take\(\) got an unexpected keyword argument 'foo'"
         tm.assertRaisesRegexp(TypeError, msg, idx.take,
                               indices, foo=2)
 

@@ -20,6 +20,7 @@ from pandas.types.common import (_coerce_to_dtype,
                                  is_numeric_dtype,
                                  is_datetime64_dtype,
                                  is_timedelta64_dtype,
+                                 is_datetime64tz_dtype,
                                  is_list_like,
                                  is_dict_like,
                                  is_re_compilable)
@@ -1067,7 +1068,7 @@ class NDFrame(PandasObject):
             Handler to call if object cannot otherwise be converted to a
             suitable format for JSON. Should receive a single argument which is
             the object to convert and return a serialisable object.
-        lines : boolean, defalut False
+        lines : boolean, default False
             If 'orient' is 'records' write out line delimited json format. Will
             throw ValueError if incorrect 'orient' since others are not list
             like.
@@ -1096,7 +1097,7 @@ class NDFrame(PandasObject):
         ----------
         path_or_buf : the path (string) or HDFStore object
         key : string
-            indentifier for the group in the store
+            identifier for the group in the store
         mode : optional, {'a', 'w', 'r+'}, default 'a'
 
           ``'w'``
@@ -3483,20 +3484,27 @@ class NDFrame(PandasObject):
                     res = self if inplace else self.copy()
                     for c, src in compat.iteritems(to_replace):
                         if c in value and c in self:
+                            # object conversion is handled in
+                            # series.replace which is called recursivelly
                             res[c] = res[c].replace(to_replace=src,
                                                     value=value[c],
-                                                    inplace=False, regex=regex)
+                                                    inplace=False,
+                                                    regex=regex)
                     return None if inplace else res
 
                 # {'A': NA} -> 0
                 elif not is_list_like(value):
-                    for k, src in compat.iteritems(to_replace):
-                        if k in self:
-                            new_data = new_data.replace(to_replace=src,
-                                                        value=value,
-                                                        filter=[k],
-                                                        inplace=inplace,
-                                                        regex=regex)
+                    keys = [(k, src) for k, src in compat.iteritems(to_replace)
+                            if k in self]
+                    keys_len = len(keys) - 1
+                    for i, (k, src) in enumerate(keys):
+                        convert = i == keys_len
+                        new_data = new_data.replace(to_replace=src,
+                                                    value=value,
+                                                    filter=[k],
+                                                    inplace=inplace,
+                                                    regex=regex,
+                                                    convert=convert)
                 else:
                     raise TypeError('value argument must be scalar, dict, or '
                                     'Series')
@@ -3742,10 +3750,10 @@ class NDFrame(PandasObject):
         if not self.index.is_monotonic:
             raise ValueError("asof requires a sorted index")
 
-        if isinstance(self, ABCSeries):
+        is_series = isinstance(self, ABCSeries)
+        if is_series:
             if subset is not None:
                 raise ValueError("subset is not valid for Series")
-            nulls = self.isnull()
         elif self.ndim > 2:
             raise NotImplementedError("asof is not implemented "
                                       "for {type}".format(type(self)))
@@ -3754,9 +3762,9 @@ class NDFrame(PandasObject):
                 subset = self.columns
             if not is_list_like(subset):
                 subset = [subset]
-            nulls = self[subset].isnull().any(1)
 
-        if not is_list_like(where):
+        is_list = is_list_like(where)
+        if not is_list:
             start = self.index[0]
             if isinstance(self.index, PeriodIndex):
                 where = Period(where, freq=self.index.freq).ordinal
@@ -3765,16 +3773,26 @@ class NDFrame(PandasObject):
             if where < start:
                 return np.nan
 
-            loc = self.index.searchsorted(where, side='right')
-            if loc > 0:
-                loc -= 1
-            while nulls[loc] and loc > 0:
-                loc -= 1
-            return self.iloc[loc]
+            # It's always much faster to use a *while* loop here for
+            # Series than pre-computing all the NAs. However a
+            # *while* loop is extremely expensive for DataFrame
+            # so we later pre-compute all the NAs and use the same
+            # code path whether *where* is a scalar or list.
+            # See PR: https://github.com/pandas-dev/pandas/pull/14476
+            if is_series:
+                loc = self.index.searchsorted(where, side='right')
+                if loc > 0:
+                    loc -= 1
+
+                values = self._values
+                while loc > 0 and isnull(values[loc]):
+                    loc -= 1
+                return values[loc]
 
         if not isinstance(where, Index):
-            where = Index(where)
+            where = Index(where) if is_list else Index([where])
 
+        nulls = self.isnull() if is_series else self[subset].isnull().any(1)
         locs = self.index.asof_locs(where, ~(nulls.values))
 
         # mask the missing
@@ -3782,7 +3800,7 @@ class NDFrame(PandasObject):
         data = self.take(locs, is_copy=False)
         data.index = where
         data.loc[missing] = np.nan
-        return data
+        return data if is_list else data.iloc[-1]
 
     # ----------------------------------------------------------------------
     # Action Methods
@@ -4005,8 +4023,10 @@ class NDFrame(PandasObject):
         -------
         converted : type of caller
 
+        Notes
+        -----
         To learn more about the frequency strings, please see `this link
-<http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases>`__.
+        <http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases>`__.
         """
         from pandas.tseries.resample import asfreq
         return asfreq(self, freq, method=method, how=how, normalize=normalize)
@@ -4446,13 +4466,23 @@ class NDFrame(PandasObject):
             left = left.fillna(axis=fill_axis, method=method, limit=limit)
             right = right.fillna(axis=fill_axis, method=method, limit=limit)
 
+        # if DatetimeIndex have different tz, convert to UTC
+        if is_datetime64tz_dtype(left.index):
+            if left.index.tz != right.index.tz:
+                if join_index is not None:
+                    left.index = join_index
+                    right.index = join_index
+
         return left.__finalize__(self), right.__finalize__(other)
 
     def _align_series(self, other, join='outer', axis=None, level=None,
                       copy=True, fill_value=None, method=None, limit=None,
                       fill_axis=0):
+
+        is_series = isinstance(self, ABCSeries)
+
         # series/series compat, other must always be a Series
-        if isinstance(self, ABCSeries):
+        if is_series:
             if axis:
                 raise ValueError('cannot align series to a series other than '
                                  'axis 0')
@@ -4511,6 +4541,15 @@ class NDFrame(PandasObject):
             left = left.fillna(fill_value, method=method, limit=limit,
                                axis=fill_axis)
             right = right.fillna(fill_value, method=method, limit=limit)
+
+        # if DatetimeIndex have different tz, convert to UTC
+        if is_series or (not is_series and axis == 0):
+            if is_datetime64tz_dtype(left.index):
+                if left.index.tz != right.index.tz:
+                    if join_index is not None:
+                        left.index = join_index
+                        right.index = join_index
+
         return left.__finalize__(self), right.__finalize__(other)
 
     def _where(self, cond, other=np.nan, inplace=False, axis=None, level=None,

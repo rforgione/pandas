@@ -421,7 +421,7 @@ class _TimeOp(_Op):
 
             # if tz's must be equal (same or None)
             if getattr(lvalues, 'tz', None) != getattr(rvalues, 'tz', None):
-                raise ValueError("Incompatbile tz's on datetime subtraction "
+                raise ValueError("Incompatible tz's on datetime subtraction "
                                  "ops")
 
         elif ((self.is_timedelta_lhs or self.is_offset_lhs) and
@@ -621,12 +621,6 @@ def _align_method_SERIES(left, right, align_asobject=False):
                 right = right.astype(object)
 
             left, right = left.align(right, copy=False)
-
-            index, lidx, ridx = left.index.join(right.index, how='outer',
-                                                return_indexers=True)
-            # if DatetimeIndex have different tz, convert to UTC
-            left.index = index
-            right.index = index
 
     return left, right
 

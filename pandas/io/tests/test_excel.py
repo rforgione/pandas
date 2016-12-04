@@ -373,14 +373,45 @@ class ReadingTestsBase(SharedItems):
         actual = self.get_exceldf(basename, 'Sheet1', converters=converters)
         tm.assert_frame_equal(actual, expected)
 
+    def test_reader_dtype(self):
+        # GH 8212
+        basename = 'testdtype'
+        actual = self.get_exceldf(basename)
+
+        expected = DataFrame({
+            'a': [1, 2, 3, 4],
+            'b': [2.5, 3.5, 4.5, 5.5],
+            'c': [1, 2, 3, 4],
+            'd': [1.0, 2.0, np.nan, 4.0]}).reindex(
+                columns=['a', 'b', 'c', 'd'])
+
+        tm.assert_frame_equal(actual, expected)
+
+        actual = self.get_exceldf(basename,
+                                  dtype={'a': 'float64',
+                                         'b': 'float32',
+                                         'c': str})
+
+        expected['a'] = expected['a'].astype('float64')
+        expected['b'] = expected['b'].astype('float32')
+        expected['c'] = ['001', '002', '003', '004']
+        tm.assert_frame_equal(actual, expected)
+
+        with tm.assertRaises(ValueError):
+            actual = self.get_exceldf(basename, dtype={'d': 'int64'})
+
     def test_reading_all_sheets(self):
         # Test reading all sheetnames by setting sheetname to None,
         # Ensure a dict is returned.
         # See PR #9450
         basename = 'test_multisheet'
         dfs = self.get_exceldf(basename, sheetname=None)
-        expected_keys = ['Alpha', 'Beta', 'Charlie']
+        # ensure this is not alphabetical to test order preservation
+        expected_keys = ['Charlie', 'Alpha', 'Beta']
         tm.assert_contains_all(expected_keys, dfs.keys())
+        # Issue 9930
+        # Ensure sheet order is preserved
+        tm.assert_equal(expected_keys, list(dfs.keys()))
 
     def test_reading_multiple_specific_sheets(self):
         # Test reading specific sheetnames by specifying a mixed list
@@ -543,7 +574,7 @@ class XlrdTests(ReadingTestsBase):
 
     @tm.network
     def test_read_from_http_url(self):
-        url = ('https://raw.github.com/pydata/pandas/master/'
+        url = ('https://raw.github.com/pandas-dev/pandas/master/'
                'pandas/io/tests/data/test1' + self.ext)
         url_table = read_excel(url)
         local_table = self.get_exceldf('test1')
@@ -1801,8 +1832,8 @@ def raise_wrapper(major_ver):
             if openpyxl_compat.is_compat(major_ver=major_ver):
                 orig_method(self, *args, **kwargs)
             else:
-                msg = ('Installed openpyxl is not supported at this '
-                       'time\. Use.+')
+                msg = (r'Installed openpyxl is not supported at this '
+                       r'time\. Use.+')
                 with tm.assertRaisesRegexp(ValueError, msg):
                     orig_method(self, *args, **kwargs)
         return wrapped

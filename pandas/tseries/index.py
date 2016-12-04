@@ -196,6 +196,9 @@ class DatetimeIndex(DatelikeOps, TimelikeOps, DatetimeIndexOpsMixin,
     name : object
         Name to be stored in the index
 
+    Notes
+    -----
+
     To learn more about the frequency strings, please see `this link
     <http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases>`__.
     """
@@ -436,7 +439,7 @@ class DatetimeIndex(DatelikeOps, TimelikeOps, DatetimeIndexOpsMixin,
                 tz = tz.localize(date.replace(tzinfo=None)).tzinfo
 
         if tz is not None and inferred_tz is not None:
-            if not inferred_tz == tz:
+            if not tslib.get_timezone(inferred_tz) == tslib.get_timezone(tz):
                 raise AssertionError("Inferred time zone not equal to passed "
                                      "time zone")
 
@@ -1446,8 +1449,15 @@ class DatetimeIndex(DatelikeOps, TimelikeOps, DatetimeIndexOpsMixin,
             freq = getattr(self, 'freqstr',
                            getattr(self, 'inferred_freq', None))
             _, parsed, reso = parse_time_string(label, freq)
-            bounds = self._parsed_string_to_bounds(reso, parsed)
-            return bounds[0 if side == 'left' else 1]
+            lower, upper = self._parsed_string_to_bounds(reso, parsed)
+            # lower, upper form the half-open interval:
+            #   [parsed, parsed + 1 freq)
+            # because label may be passed to searchsorted
+            # the bounds need swapped if index is reverse sorted and has a
+            # length (is_monotonic_decreasing gives True for empty index)
+            if self.is_monotonic_decreasing and len(self):
+                return upper if side == 'left' else lower
+            return lower if side == 'left' else upper
         else:
             return label
 
@@ -1610,15 +1620,16 @@ class DatetimeIndex(DatelikeOps, TimelikeOps, DatetimeIndexOpsMixin,
         return DatetimeIndex(new_values, freq='infer', name=self.name,
                              tz=self.tz)
 
-    @Substitution(klass='DatetimeIndex', value='key')
+    @Substitution(klass='DatetimeIndex')
     @Appender(_shared_docs['searchsorted'])
-    def searchsorted(self, key, side='left', sorter=None):
-        if isinstance(key, (np.ndarray, Index)):
-            key = np.array(key, dtype=_NS_DTYPE, copy=False)
+    @deprecate_kwarg(old_arg_name='key', new_arg_name='value')
+    def searchsorted(self, value, side='left', sorter=None):
+        if isinstance(value, (np.ndarray, Index)):
+            value = np.array(value, dtype=_NS_DTYPE, copy=False)
         else:
-            key = _to_m8(key, tz=self.tz)
+            value = _to_m8(value, tz=self.tz)
 
-        return self.values.searchsorted(key, side=side)
+        return self.values.searchsorted(value, side=side)
 
     def is_type_compatible(self, typ):
         return typ == self.inferred_type or typ == 'datetime'

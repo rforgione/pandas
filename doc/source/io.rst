@@ -157,6 +157,9 @@ dtype : Type name or dict of column -> type, default ``None``
   Data type for data or columns. E.g. ``{'a': np.float64, 'b': np.int32}``
   (unsupported with ``engine='python'``). Use `str` or `object` to preserve and
   not interpret dtype.
+
+  .. versionadded:: 0.20.0 support for the Python parser.
+
 engine : {``'c'``, ``'python'``}
   Parser engine to use. The C engine is faster while the python engine is
   currently more feature-complete.
@@ -473,10 +476,9 @@ However, if you wanted for all the data to be coerced, no matter the type, then
 using the ``converters`` argument of :func:`~pandas.read_csv` would certainly be
 worth trying.
 
-.. note::
-    The ``dtype`` option is currently only supported by the C engine.
-    Specifying ``dtype`` with ``engine`` other than 'c' raises a
-    ``ValueError``.
+  .. versionadded:: 0.20.0 support for the Python parser.
+
+     The ``dtype`` option is supported by the 'python' engine
 
 .. note::
    In some cases, reading in abnormal data with columns containing mixed dtypes
@@ -1165,8 +1167,8 @@ too many will cause an error by default:
 
     In [28]: pd.read_csv(StringIO(data))
     ---------------------------------------------------------------------------
-    CParserError                              Traceback (most recent call last)
-    CParserError: Error tokenizing data. C error: Expected 3 fields in line 3, saw 4
+    ParserError                              Traceback (most recent call last)
+    ParserError: Error tokenizing data. C error: Expected 3 fields in line 3, saw 4
 
 You can elect to skip bad lines:
 
@@ -1266,10 +1268,21 @@ is whitespace).
    df = pd.read_fwf('bar.csv', header=None, index_col=0)
    df
 
+.. versionadded:: 0.20.0
+
+``read_fwf`` supports the ``dtype`` parameter for specifying the types of
+parsed columns to be different from the inferred type.
+
+.. ipython:: python
+
+   pd.read_fwf('bar.csv', header=None, index_col=0).dtypes
+   pd.read_fwf('bar.csv', header=None, dtype={2: 'object'}).dtypes
+
 .. ipython:: python
    :suppress:
 
    os.remove('bar.csv')
+
 
 Indexes
 '''''''
@@ -1481,7 +1494,7 @@ function takes a number of arguments. Only the first is required.
   - ``encoding``: a string representing the encoding to use if the contents are
     non-ASCII, for python versions prior to 3
   - ``line_terminator``: Character sequence denoting line end (default '\\n')
-  - ``quoting``: Set quoting rules as in csv module (default csv.QUOTE_MINIMAL)
+  - ``quoting``: Set quoting rules as in csv module (default csv.QUOTE_MINIMAL). Note that if you have set a `float_format` then floats are converted to strings and csv.QUOTE_NONNUMERIC will treat them as non-numeric
   - ``quotechar``: Character used to quote fields (default '"')
   - ``doublequote``: Control quoting of ``quotechar`` in fields (default True)
   - ``escapechar``: Character used to escape ``sep`` and ``quotechar`` when
@@ -2035,7 +2048,7 @@ You can even pass in an instance of ``StringIO`` if you so desire
    that having so many network-accessing functions slows down the documentation
    build. If you spot an error or an example that doesn't run, please do not
    hesitate to report it over on `pandas GitHub issues page
-   <http://www.github.com/pydata/pandas/issues>`__.
+   <http://www.github.com/pandas-dev/pandas/issues>`__.
 
 
 Read a URL and match a table that contains specific text
@@ -2525,6 +2538,20 @@ missing data to recover integer dtype:
    cfun = lambda x: int(x) if x else -1
    read_excel('path_to_file.xls', 'Sheet1', converters={'MyInts': cfun})
 
+dtype Specifications
+++++++++++++++++++++
+
+.. versionadded:: 0.20
+
+As an alternative to converters, the type for an entire column can
+be specified using the `dtype` keyword, which takes a dictionary
+mapping column names to types.  To interpret data with
+no type inference, use the type ``str`` or ``object``.
+
+.. code-block:: python
+
+   read_excel('path_to_file.xls', dtype={'MyInts': 'int64', 'MyText': str})
+
 .. _io.excel_writer:
 
 Writing Excel Files
@@ -2639,8 +2666,8 @@ config options <options>` ``io.excel.xlsx.writer`` and
 ``io.excel.xls.writer``. pandas will fall back on `openpyxl`_ for ``.xlsx``
 files if `Xlsxwriter`_ is not available.
 
-.. _XlsxWriter: http://xlsxwriter.readthedocs.org
-.. _openpyxl: http://openpyxl.readthedocs.org/
+.. _XlsxWriter: https://xlsxwriter.readthedocs.io
+.. _openpyxl: https://openpyxl.readthedocs.io/
 .. _xlwt: http://www.python-excel.org
 
 To specify which writer you want to use, you can pass an engine keyword
@@ -2775,6 +2802,7 @@ both on the writing (serialization), and reading (deserialization).
    as an EXPERIMENTAL LIBRARY, the storage format may not be stable until a future release.
 
    As a result of writing format changes and other issues:
+
    +----------------------+------------------------+
    | Packed with          | Can be unpacked with   |
    +======================+========================+
@@ -2788,7 +2816,7 @@ both on the writing (serialization), and reading (deserialization).
    | 0.17 / Python 3      | >=0.18 / any Python    |
    +----------------------+------------------------+
    | 0.18                 | >= 0.18                |
-   +======================+========================+
+   +----------------------+------------------------+
 
    Reading (files packed by older versions) is backward-compatibile, except for files packed with 0.17 in Python 2, in which case only they can only be unpacked in Python 2.
 
